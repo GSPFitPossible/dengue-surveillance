@@ -99,10 +99,22 @@ function initDashMap() {
     scrollWheelZoom: true,
   });
 
-  // Light OSM tile layer
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
+  // Base layers
+  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google'
+  });
+  
+  const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google'
+  });
+
+  googleHybrid.addTo(dashMap);
+
+  L.control.layers({
+    "ดาวเทียม (Hybrid)": googleHybrid,
+    "ถนน (Streets)": googleStreets
   }).addTo(dashMap);
 
   renderDashMarkers();
@@ -388,10 +400,22 @@ function initMap() {
     zoomControl: true,
   });
 
-  // Light OSM tile layer
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
+  // Base layers
+  const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google'
+  });
+  
+  const googleStreets = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    attribution: '© Google'
+  });
+
+  googleHybrid.addTo(map);
+
+  L.control.layers({
+    "ดาวเทียม (Hybrid)": googleHybrid,
+    "ถนน (Streets)": googleStreets
   }).addTo(map);
 
   renderMapMarkers();
