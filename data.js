@@ -191,7 +191,7 @@ const SEED_CASES = [
     onset: "2026-06-05",
     confirm: "2026-06-05",
     address: "26/6 ม.2 หมู่บ้านจางวาง (เลยร้านยายคำ 3 หลัง)",
-    hospital: "Admit",
+    hospital: "Admit - มา รพ. 5 และ 6 มิ.ย. 69",
     school: "รร.บ้านจางวาง ป.3",
     tel: "092-3340731",
     cluster: "จางวาง ม.2",
@@ -199,7 +199,7 @@ const SEED_CASES = [
     wbc: 8450, plt: 414000, hct: 29.0,
     ns1: "Pos", igm: "Neg", igg: "Neg",
     lat: 12.9570, lng: 102.1838,
-    note: "บ้านอยู่ขวามือ บ้านชั้นเดียว ตรงข้ามอิฐแดง / สวนอยู่ซอยเกษตรไทย",
+    note: "N 90.5 / L 5.7 / TT=Neg / NS1=Pos / IgM=Neg / IgG=Neg | บ้านอยู่ขวามือ บ้านชั้นเดียว ตรงข้ามอิฐแดง / สวนซอยเกษตรไทย เข้าไป 4 กม. เข้าซอยสะพานน้ำข้ามคลองสวนที่ 5 บ้านพี่กิ้ฟ",
     status: "active"
   },
   {
@@ -211,7 +211,7 @@ const SEED_CASES = [
     onset: "2026-06-06",
     confirm: "2026-06-07",
     address: "17 ม.2 หมู่บ้านจางวาง (เลยร้านยายคำ 1 หลัง)",
-    hospital: "DF",
+    hospital: "มา รพ. 7 มิ.ย. 69 (DF ไม่ Admit)",
     school: "สกร. (ไม่ได้เดินทางไปเรียน)",
     tel: "063-4944973",
     cluster: "จางวาง ม.2",
@@ -219,7 +219,7 @@ const SEED_CASES = [
     wbc: 4790, plt: 172000, hct: 33.3,
     ns1: "Pos", igm: "Neg", igg: "Neg",
     lat: 12.9572, lng: 102.1836,
-    note: "บ้านห่างจาก ด.ญ.พิชชานันท์ 1 หลัง (ประมาณ 10-15 ม.)",
+    note: "N 70.6 / L 19.6 / TT=ไม่ได้ทำ / NS1=Pos / IgM=Neg / IgG=Neg | บ้านห่างจาก ด.ญ.พิชชานันท์ 1 หลัง (ประมาณ 10-15 เมตร)",
     status: "active"
   }
 ];
@@ -289,7 +289,7 @@ const VILLAGE_SUMMARY = {
 // ====================================================
 function loadCases() {
   try {
-    const stored = localStorage.getItem("dengue_cases_2569");
+    const stored = localStorage.getItem("dengue_cases_2569_v2");
     if (stored) return JSON.parse(stored);
   } catch(e) {}
   // Return seed data on first load
@@ -298,7 +298,7 @@ function loadCases() {
 }
 
 function saveCases(cases) {
-  localStorage.setItem("dengue_cases_2569", JSON.stringify(cases));
+  localStorage.setItem("dengue_cases_2569_v2", JSON.stringify(cases));
 }
 
 function getCaseById(id) {
