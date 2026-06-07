@@ -120,14 +120,15 @@ function renderDashMarkers() {
     if (!c.lat || !c.lng) return;
     const color = getMarkerColor(c.type);
 
-    // 100m radius circle
+    // รัศมี 100m — ไม่รับ click/hover
     const circle = L.circle([c.lat, c.lng], {
       radius: 100,
       color: "#1a8fc4",
       fillColor: "#1a8fc4",
-      fillOpacity: 0.08,
+      fillOpacity: 0.07,
       weight: 1.5,
-      dashArray: "5,5",
+      dashArray: "6,4",
+      interactive: false,
     }).addTo(dashMap);
     dashCircles.push(circle);
 
@@ -140,14 +141,68 @@ function renderDashMarkers() {
       weight: 2.5,
       opacity: 1,
       fillOpacity: 0.92,
+      bubblingMouseEvents: false,
     }).addTo(dashMap);
 
-    marker.bindTooltip(`<b>${c.name}</b><br>${c.type} · ม.${c.village}`, {
-      permanent: false,
-      direction: "top",
+    marker._caseId = c.id;
+
+    // Hover effect
+    marker.on("mouseover", function() {
+      if (dashSelectedId !== c.id) this.setStyle({ weight: 4, color, radius: size + 2 });
+      this.openTooltip();
+    });
+    marker.on("mouseout", function() {
+      if (dashSelectedId !== c.id) this.setStyle({ weight: 2.5, color: "#fff", radius: size });
+      this.closeTooltip();
     });
 
-    marker.on("click", () => showDashOverlay(c));
+    // Rich tooltip
+    const onsetFmt = c.onset ? formatDateTH(c.onset) : "-";
+    marker.bindTooltip(
+      `<div style="font-family:'Sarabun',sans-serif;min-width:170px">
+        <div style="font-weight:800;font-size:0.88rem;color:#1a202c;margin-bottom:4px">${c.name}</div>
+        <div style="display:flex;gap:4px;margin-bottom:4px">
+          <span style="background:${color}18;color:${color};border:1px solid ${color}55;padding:1px 8px;border-radius:999px;font-size:0.7rem;font-weight:700">${c.type}</span>
+          <span style="background:#dbeafe;color:#1a8fc4;border:1px solid #93c5fd;padding:1px 8px;border-radius:999px;font-size:0.7rem;font-weight:700">ม.${c.village}</span>
+        </div>
+        <div style="font-size:0.73rem;color:#4a5568">🤒 เริ่มป่วย: <b>${onsetFmt}</b></div>
+        ${c.address ? `<div style="font-size:0.7rem;color:#718096;margin-top:2px">📍 ${c.address}</div>` : ""}
+        <div style="margin-top:5px;font-size:0.68rem;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:4px">🖱️ คลิกเพื่อดูรายละเอียด</div>
+      </div>`,
+      { permanent: false, direction: "top", offset: [0, -size - 4], opacity: 1, className: "dengue-tooltip" }
+    );
+
+    marker.on("click", () => {
+      // deselect previous
+      if (dashSelectedId) {
+        const prev = dashMarkers.find(m => m._caseId === dashSelectedId);
+        if (prev) prev.setStyle({ weight: 2.5, color: "#fff", radius: getCaseById(dashSelectedId)?.type === "DHF" ? 15 : 11 });
+      }
+      if (dashSelectedPulse) { dashMap.removeLayer(dashSelectedPulse); dashSelectedPulse = null; }
+
+      dashSelectedId = c.id;
+      marker.setStyle({ weight: 4, color, radius: size + 3 });
+      marker.bringToFront();
+
+      // Pulse ring
+      dashSelectedPulse = L.circleMarker([c.lat, c.lng], {
+        radius: size + 8, fillColor: "transparent", color, weight: 2,
+        opacity: 0.6, fillOpacity: 0, interactive: false,
+      }).addTo(dashMap);
+      let grow = true; let pr = size + 8;
+      const iv = setInterval(() => {
+        if (!dashSelectedPulse || !dashMap.hasLayer(dashSelectedPulse)) { clearInterval(iv); return; }
+        pr += grow ? 0.8 : -0.8;
+        if (pr > size + 20) grow = false;
+        if (pr < size + 8) grow = true;
+        dashSelectedPulse.setRadius(pr);
+        dashSelectedPulse.setStyle({ opacity: grow ? 0.3 : 0.7 });
+      }, 40);
+      dashSelectedPulse._iv = iv;
+
+      showDashOverlay(c);
+    });
+
     dashMarkers.push(marker);
   });
 }
@@ -200,6 +255,17 @@ function showDashOverlay(c) {
 
 function closeDashOverlay() {
   document.getElementById("dashMapOverlay").style.display = "none";
+  // ล้าง selection
+  if (dashSelectedPulse) {
+    if (dashSelectedPulse._iv) clearInterval(dashSelectedPulse._iv);
+    dashMap.removeLayer(dashSelectedPulse);
+    dashSelectedPulse = null;
+  }
+  if (dashSelectedId) {
+    const prev = dashMarkers.find(m => m._caseId === dashSelectedId);
+    if (prev) prev.setStyle({ weight: 2.5, color: "#fff", radius: getCaseById(dashSelectedId)?.type === "DHF" ? 15 : 11 });
+    dashSelectedId = null;
+  }
 }
 
 function resetDashMapView() {
@@ -397,7 +463,11 @@ function renderMapMarkers() {
 
     // ── Tooltip (hover card) ──
     const onsetFmt = c.onset ? formatDateTH(c.onset) : "-";
-    const labLine = c.wbc ? `<div style="margin-top:4px;font-size:0.72rem">WBC: <b style="color:${c.wbc < 4000 ? "#e8354a" : "#0a9e76'}">${c.wbc.toLocaleString()}</b> · PLT: <b style="color:${c.plt && c.plt < 100000 ? "#e8354a" : "#0a9e76'}">${c.plt ? c.plt.toLocaleString() : "-"}</b></div>` : "";
+    const wbcColor = (c.wbc && c.wbc < 4000) ? "#e8354a" : "#0a9e76";
+    const pltColor = (c.plt && c.plt < 100000) ? "#e8354a" : "#0a9e76";
+    const labLine = c.wbc
+      ? `<div style="margin-top:4px;font-size:0.72rem">WBC: <b style="color:${wbcColor}">${c.wbc.toLocaleString()}</b> &middot; PLT: <b style="color:${pltColor}">${c.plt ? c.plt.toLocaleString() : "-"}</b></div>`
+      : "";
     marker.bindTooltip(
       `<div style="font-family:'Sarabun',sans-serif;min-width:180px">
         <div style="font-weight:800;font-size:0.9rem;color:#1a202c;margin-bottom:4px">${c.name}</div>
