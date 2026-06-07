@@ -14,12 +14,16 @@ let radiusCircles = [];
 let radiusVisible = true;
 let currentEditId = null;
 let epiChart = null;
+let selectedMarkerId = null;    // ติดตาม marker ที่เลือกอยู่
+let selectedPulseLayer = null;  // วง pulse animation
 
 // Dashboard mini-map globals
 let dashMap = null;
 let dashMarkers = [];
 let dashCircles = [];
 let dashRadiusVisible = true;
+let dashSelectedId = null;
+let dashSelectedPulse = null;
 
 // ====================================================
 //  INIT
@@ -337,44 +341,89 @@ function getMarkerColor(type) {
 function renderMapMarkers() {
   const cases = loadCases();
 
-  // Clear old markers
+  // Clear old layers
   markers.forEach(m => map.removeLayer(m));
   radiusCircles.forEach(c => map.removeLayer(c));
+  if (selectedPulseLayer) { map.removeLayer(selectedPulseLayer); selectedPulseLayer = null; }
   markers = [];
   radiusCircles = [];
+  selectedMarkerId = null;
 
   cases.forEach(c => {
     if (!c.lat || !c.lng) return;
     const color = getMarkerColor(c.type);
 
-    // Radius circle (100m)
+    // ── รัศมี 100m: interactive:false เพื่อไม่บัง click ──
     const circle = L.circle([c.lat, c.lng], {
       radius: 100,
-      color: "#4cc9f0",
-      fillColor: "#4cc9f0",
-      fillOpacity: 0.08,
+      color: "#1a8fc4",
+      fillColor: "#1a8fc4",
+      fillOpacity: 0.07,
       weight: 1.5,
-      dashArray: "5,5",
+      dashArray: "6,4",
+      interactive: false,   // ← กุญแจสำคัญ: ไม่รับ click/hover
     }).addTo(map);
     radiusCircles.push(circle);
 
-    // Custom circle marker
+    // ── Marker หลัก ──
+    const radius = c.type === "DHF" ? 14 : 11;
     const marker = L.circleMarker([c.lat, c.lng], {
-      radius: c.type === "DHF" ? 14 : 11,
+      radius,
       fillColor: color,
       color: "white",
       weight: 2.5,
       opacity: 1,
       fillOpacity: 0.92,
+      bubblingMouseEvents: false,
     }).addTo(map);
 
-    marker.bindTooltip(`<b>${c.name}</b><br>${c.type} | ม.${c.village}`, {
-      permanent: false,
-      direction: "top",
-      className: "custom-tooltip",
+    // caseId เก็บไว้กับ marker
+    marker._caseId = c.id;
+
+    // ── Hover: แสดง tooltip สวยงาม ──
+    marker.on("mouseover", function(e) {
+      if (selectedMarkerId !== c.id) {
+        this.setStyle({ weight: 4, color: color, radius: radius + 2 });
+      }
+      this.openTooltip();
     });
 
-    marker.on("click", () => {
+    marker.on("mouseout", function() {
+      if (selectedMarkerId !== c.id) {
+        this.setStyle({ weight: 2.5, color: "white", radius });
+      }
+      this.closeTooltip();
+    });
+
+    // ── Tooltip (hover card) ──
+    const onsetFmt = c.onset ? formatDateTH(c.onset) : "-";
+    const labLine = c.wbc ? `<div style="margin-top:4px;font-size:0.72rem">WBC: <b style="color:${c.wbc < 4000 ? "#e8354a" : "#0a9e76'}">${c.wbc.toLocaleString()}</b> · PLT: <b style="color:${c.plt && c.plt < 100000 ? "#e8354a" : "#0a9e76'}">${c.plt ? c.plt.toLocaleString() : "-"}</b></div>` : "";
+    marker.bindTooltip(
+      `<div style="font-family:'Sarabun',sans-serif;min-width:180px">
+        <div style="font-weight:800;font-size:0.9rem;color:#1a202c;margin-bottom:4px">${c.name}</div>
+        <div style="display:flex;gap:5px;margin-bottom:4px">
+          <span style="background:${color}18;color:${color};border:1px solid ${color}55;padding:1px 8px;border-radius:999px;font-size:0.7rem;font-weight:700">${c.type}</span>
+          <span style="background:#dbeafe;color:#1a8fc4;border:1px solid #93c5fd;padding:1px 8px;border-radius:999px;font-size:0.7rem;font-weight:700">ม.${c.village}</span>
+          ${c.cluster ? `<span style="background:#f3e8ff;color:#8b12a4;border:1px solid #d8b4fe;padding:1px 8px;border-radius:999px;font-size:0.7rem;font-weight:700">🔗Cluster</span>` : ""}
+        </div>
+        <div style="font-size:0.75rem;color:#4a5568">🤒 เริ่มป่วย: <b>${onsetFmt}</b></div>
+        ${c.age ? `<div style="font-size:0.75rem;color:#4a5568">👤 อายุ ${c.age} ปี</div>` : ""}
+        ${c.address ? `<div style="font-size:0.72rem;color:#718096;margin-top:2px">📍 ${c.address}</div>` : ""}
+        ${labLine}
+        <div style="margin-top:6px;font-size:0.7rem;color:#9ca3af;border-top:1px solid #e5e7eb;padding-top:4px">🖱️ คลิกเพื่อดูรายละเอียดเพิ่มเติม</div>
+      </div>`,
+      {
+        permanent: false,
+        direction: "top",
+        offset: [0, -radius - 4],
+        opacity: 1,
+        className: "dengue-tooltip",
+      }
+    );
+
+    // ── Click: เลือก marker + แสดง overlay ──
+    marker.on("click", function() {
+      selectMapMarker(c, this, radius, color);
       showMapOverlay(c);
     });
 
@@ -382,20 +431,74 @@ function renderMapMarkers() {
   });
 }
 
+// เลือก marker + สร้าง pulse ring
+function selectMapMarker(c, markerLayer, radius, color) {
+  // รีเซ็ต marker เดิม
+  if (selectedMarkerId) {
+    const prev = markers.find(m => m._caseId === selectedMarkerId);
+    if (prev) {
+      const prevColor = getMarkerColor(getCaseById(selectedMarkerId)?.type || "DF");
+      const prevR = getCaseById(selectedMarkerId)?.type === "DHF" ? 14 : 11;
+      prev.setStyle({ weight: 2.5, color: "white", radius: prevR });
+    }
+  }
+  if (selectedPulseLayer) { map.removeLayer(selectedPulseLayer); selectedPulseLayer = null; }
+
+  selectedMarkerId = c.id;
+
+  // สไตล์ marker ที่เลือก
+  markerLayer.setStyle({ weight: 4, color: color, radius: radius + 3 });
+  markerLayer.bringToFront();
+
+  // สร้าง pulse ring (circle ขยายตัว)
+  selectedPulseLayer = L.circleMarker([c.lat, c.lng], {
+    radius: radius + 8,
+    fillColor: "transparent",
+    color: color,
+    weight: 2,
+    opacity: 0.6,
+    fillOpacity: 0,
+    interactive: false,
+    className: "pulse-ring",
+  }).addTo(map);
+
+  // Animate pulse ring
+  let growing = true;
+  let pulseRadius = radius + 8;
+  const pulseInterval = setInterval(() => {
+    if (!selectedPulseLayer || !map.hasLayer(selectedPulseLayer)) {
+      clearInterval(pulseInterval);
+      return;
+    }
+    if (growing) {
+      pulseRadius += 0.8;
+      if (pulseRadius > radius + 20) growing = false;
+    } else {
+      pulseRadius -= 0.8;
+      if (pulseRadius < radius + 8) growing = true;
+    }
+    selectedPulseLayer.setRadius(pulseRadius);
+    selectedPulseLayer.setStyle({ opacity: growing ? 0.3 : 0.7 });
+  }, 40);
+
+  selectedPulseLayer._pulseInterval = pulseInterval;
+}
+
 function renderMapCaseList() {
   const container = document.getElementById("mapCaseList");
   if (!container) return;
   const cases = loadCases();
-  container.innerHTML = `<div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px;">รายชื่อเคส (${cases.length})</div>`;
+  container.innerHTML = `<div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px">รายชื่อเคส (${cases.length} ราย)</div>`;
   cases.forEach(c => {
     const color = getMarkerColor(c.type);
     container.innerHTML += `
-      <div class="map-case-item" onclick="flyToCase('${c.id}')">
+      <div class="map-case-item" id="listItem-${c.id}" onclick="flyToCase('${c.id}')">
         <div class="map-case-dot" style="background:${color};box-shadow:0 0 6px ${color}"></div>
         <div class="map-case-info">
           <div class="map-case-name">${c.name}</div>
-          <div class="map-case-sub">${c.type} · ม.${c.village}</div>
+          <div class="map-case-sub">${c.type} · ม.${c.village} ${c.cluster ? "· 🔗" + c.cluster : ""}</div>
         </div>
+        <div style="font-size:0.7rem;color:var(--text-muted);white-space:nowrap">${c.onset ? formatDateTH(c.onset) : ""}</div>
       </div>`;
   });
 }
@@ -405,8 +508,20 @@ function flyToCase(id) {
   if (!c || !c.lat || !c.lng) return;
   if (!map) { switchTab("map"); setTimeout(() => flyToCase(id), 300); return; }
   switchTab("map");
-  map.flyTo([c.lat, c.lng], 17, { duration: 1.2 });
-  showMapOverlay(c);
+  map.flyTo([c.lat, c.lng], 17, { duration: 1.0 });
+
+  // หลัง fly เสร็จ ค่อย select marker
+  setTimeout(() => {
+    const color = getMarkerColor(c.type);
+    const radius = c.type === "DHF" ? 14 : 11;
+    const markerLayer = markers.find(m => m._caseId === id);
+    if (markerLayer) selectMapMarker(c, markerLayer, radius, color);
+    showMapOverlay(c);
+    // highlight list item
+    document.querySelectorAll(".map-case-item").forEach(el => el.classList.remove("map-case-item-active"));
+    const listEl = document.getElementById("listItem-" + id);
+    if (listEl) { listEl.classList.add("map-case-item-active"); listEl.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+  }, 1100);
 }
 
 function showMapOverlay(c) {
@@ -450,10 +565,26 @@ function showMapOverlay(c) {
 
 function closeMapOverlay() {
   document.getElementById("mapOverlayInfo").style.display = "none";
+  // ล้าง selection
+  if (selectedPulseLayer) {
+    if (selectedPulseLayer._pulseInterval) clearInterval(selectedPulseLayer._pulseInterval);
+    map.removeLayer(selectedPulseLayer);
+    selectedPulseLayer = null;
+  }
+  if (selectedMarkerId) {
+    const prev = markers.find(m => m._caseId === selectedMarkerId);
+    if (prev) {
+      const prevType = getCaseById(selectedMarkerId)?.type;
+      prev.setStyle({ weight: 2.5, color: "white", radius: prevType === "DHF" ? 14 : 11 });
+    }
+    selectedMarkerId = null;
+  }
+  document.querySelectorAll(".map-case-item").forEach(el => el.classList.remove("map-case-item-active"));
 }
 
 function resetMapView() {
   if (map) map.flyTo(MAP_CENTER, 14, { duration: 1 });
+  closeMapOverlay();
 }
 
 function toggleAllRadius() {

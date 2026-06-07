@@ -987,3 +987,67 @@ body {
   .cases-controls { flex-direction: column; width: 100%; }
   .search-input { width: 100%; }
 }
+
+/* ============================
+   LEAFLET TOOLTIP — DENGUE STYLE
+   ============================ */
+.dengue-tooltip {
+  background: #ffffff !important;
+  border: 1px solid #dde3ec !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.14) !important;
+  padding: 10px 14px !important;
+  font-family: 'Sarabun', sans-serif !important;
+  font-size: 0.82rem !important;
+  color: #1a202c !important;
+  min-width: 190px !important;
+  pointer-events: none !important;
+}
+
+.dengue-tooltip::before {
+  border-top-color: #dde3ec !important;
+}
+
+.dengue-tooltip::after {
+  border-top-color: #ffffff !important;
+}
+
+/* Leaflet default tooltip override */
+.leaflet-tooltip {
+  border-radius: 10px !important;
+  font-family: 'Sarabun', sans-serif !important;
+}
+
+/* ============================
+   MAP CASE LIST — SELECTED STATE
+   ============================ */
+.map-case-item-active {
+  background: var(--red-soft) !important;
+  border-left: 3px solid var(--red) !important;
+  padding-left: 6px !important;
+  border-radius: 6px !important;
+}
+
+.map-case-item-active .map-case-name {
+  color: var(--red) !important;
+  font-weight: 700 !important;
+}
+
+/* ============================
+   PULSE RING ANIMATION
+   ============================ */
+@keyframes pulseRing {
+  0%   { stroke-opacity: 0.8; r: 0; }
+  80%  { stroke-opacity: 0.1; }
+  100% { stroke-opacity: 0; r: 20px; }
+}
+
+.pulse-ring path {
+  animation: pulseRing 1.5s ease-out infinite;
+}
+
+/* Leaflet SVG circleMarker cursor */
+.leaflet-interactive {
+  cursor: pointer !important;
+}
+
