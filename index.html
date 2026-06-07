@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบเฝ้าระวังโรคไข้เลือดออก – ต.หนองตาคง</title>
+  <meta name="description" content="ระบบติดตามและเฝ้าระวังเคสโรคไข้เลือดออก ตำบลหนองตาคง อำเภอโป่งน้ำร้อน จังหวัดจันทบุรี" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="header-left">
+        <div class="header-icon">🦟</div>
+        <div class="header-text">
+          <h1>ระบบเฝ้าระวังไข้เลือดออก</h1>
+          <p>ต.หนองตาคง · อ.โป่งน้ำร้อน · จ.จันทบุรี</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="alert-badge" id="alertBadge">
+          <span class="pulse-dot"></span>
+          <span id="alertText">กำลังติดตาม 9 เคส</span>
+        </div>
+        <div class="current-date" id="currentDate"></div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">
+        <span class="tab-icon">📊</span>
+        <span>Dashboard</span>
+      </button>
+      <button class="tab-btn" id="tab-timeline" onclick="switchTab('timeline')">
+        <span class="tab-icon">📅</span>
+        <span>ไทม์ไลน์</span>
+      </button>
+      <button class="tab-btn" id="tab-map" onclick="switchTab('map')">
+        <span class="tab-icon">🗺️</span>
+        <span>แผนที่พิกัดเคส</span>
+      </button>
+      <button class="tab-btn" id="tab-cases" onclick="switchTab('cases')">
+        <span class="tab-icon">📋</span>
+        <span>ข้อมูลเคส</span>
+      </button>
+      <button class="tab-btn" id="tab-add" onclick="switchTab('add')">
+        <span class="tab-icon">➕</span>
+        <span>เพิ่มเคส</span>
+      </button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+    <!-- ===== TAB: DASHBOARD ===== -->
+    <section class="tab-content active" id="content-dashboard">
+      <!-- Summary Cards -->
+      <div class="stats-grid">
+        <div class="stat-card stat-total">
+          <div class="stat-icon">🩸</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statTotal">9</div>
+            <div class="stat-label">เคสทั้งหมด (ปี 2569)</div>
+          </div>
+          <div class="stat-trend">▲ เพิ่มขึ้น</div>
+        </div>
+        <div class="stat-card stat-active">
+          <div class="stat-icon">🏥</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statActive">3</div>
+            <div class="stat-label">Admit (DHF/DF)</div>
+          </div>
+        </div>
+        <div class="stat-card stat-cluster">
+          <div class="stat-icon">🔗</div>
+          <div class="stat-body">
+            <div class="stat-value" id="statCluster">2</div>
+            <div class="stat-label">กลุ่มระบาด (Cluster)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Map -->
+      <div class="dashboard-map-card">
+        <div class="card-header">
+          <h2 class="card-title">🗺️ แผนที่พิกัดเคสไข้เลือดออก</h2>
+          <div style="display:flex;gap:8px;align-items:center">
+            <span class="card-badge" id="dashMapBadge">อัปเดต 7/6/69</span>
+            <button class="map-ctrl-btn" style="padding:4px 12px;font-size:0.78rem" onclick="resetDashMapView()">🔄 รีเซ็ต</button>
+            <button class="map-ctrl-btn" style="padding:4px 12px;font-size:0.78rem" onclick="toggleDashRadius()">⭕ รัศมี</button>
+          </div>
+        </div>
+        <div style="position:relative">
+          <div id="dashboardMap"></div>
+          <!-- Dashboard map overlay panel -->
+          <div class="map-overlay-info" id="dashMapOverlay" style="display:none">
+            <button class="close-overlay" onclick="closeDashOverlay()">✕</button>
+            <div id="dashOverlayContent"></div>
+          </div>
+          <!-- Map legend inside map -->
+          <div style="position:absolute;bottom:12px;left:12px;z-index:500;background:rgba(255,255,255,0.95);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.75rem;color:var(--text-secondary);box-shadow:var(--shadow)">
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e8354a;margin-right:4px"></span>DHF</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e07b1a;margin-right:4px"></span>DF</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c49c00;margin-right:4px"></span>R/O DF</span>
+              <span><span style="display:inline-block;width:14px;height:8px;border-radius:2px;background:rgba(26,143,196,0.15);border:1px solid #1a8fc4;margin-right:4px"></span>รัศมี 100ม.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cluster Info + Activity Log -->
+      <div class="dashboard-row">
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h2 class="card-title">🔗 วงระบาด (Cluster)</h2>
+          </div>
+          <div class="cluster-list" id="clusterList"></div>
+        </div>
+
+        <div class="dashboard-card">
+          <div class="card-header">
+            <h2 class="card-title">📋 กิจกรรมควบคุมโรคล่าสุด</h2>
+          </div>
+          <div class="activity-log" id="activityLog"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TAB: TIMELINE ===== -->
+    <section class="tab-content" id="content-timeline">
+      <div class="timeline-header">
+        <h2>📅 ไทม์ไลน์การระบาด ปี พ.ศ. 2569</h2>
+        <div class="timeline-filter">
+          <button class="filter-btn active" onclick="filterTimeline('all', this)">ทั้งหมด</button>
+          <button class="filter-btn" onclick="filterTimeline('DHF', this)">DHF</button>
+          <button class="filter-btn" onclick="filterTimeline('DF', this)">DF</button>
+          <button class="filter-btn" onclick="filterTimeline('cluster', this)">Cluster</button>
+        </div>
+      </div>
+      <div class="timeline-container" id="timelineContainer"></div>
+    </section>
+
+    <!-- ===== TAB: MAP ===== -->
+    <section class="tab-content" id="content-map">
+      <div class="map-layout">
+        <div class="map-sidebar">
+          <div class="map-legend">
+            <h3>สัญลักษณ์</h3>
+            <div class="legend-item"><span class="legend-dot dhf"></span> DHF (รุนแรง)</div>
+            <div class="legend-item"><span class="legend-dot df"></span> DF (ปกติ)</div>
+            <div class="legend-item"><span class="legend-dot ro"></span> R/O DF</div>
+            <div class="legend-item"><span class="legend-radius"></span> รัศมี 100 เมตร</div>
+          </div>
+          <div class="map-case-list" id="mapCaseList"></div>
+          <div class="map-controls">
+            <button class="map-ctrl-btn" onclick="resetMapView()">🔄 รีเซ็ตมุมมอง</button>
+            <button class="map-ctrl-btn" onclick="toggleAllRadius()">⭕ แสดง/ซ่อนรัศมี</button>
+          </div>
+        </div>
+        <div class="map-wrapper">
+          <div id="dengueMap"></div>
+          <div class="map-overlay-info" id="mapOverlayInfo" style="display:none">
+            <button class="close-overlay" onclick="closeMapOverlay()">✕</button>
+            <div id="overlayContent"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TAB: CASES ===== -->
+    <section class="tab-content" id="content-cases">
+      <div class="cases-header">
+        <h2>📋 ข้อมูลเคสทั้งหมด</h2>
+        <div class="cases-controls">
+          <input type="text" id="caseSearch" class="search-input" placeholder="🔍 ค้นหาชื่อ, หมู่, ประเภท..." oninput="filterCases()" />
+          <select id="caseFilter" class="filter-select" onchange="filterCases()">
+            <option value="all">ทุกประเภท</option>
+            <option value="DHF">DHF</option>
+            <option value="DF">DF</option>
+            <option value="R/O DF">R/O DF</option>
+          </select>
+          <select id="villageFilter" class="filter-select" onchange="filterCases()">
+            <option value="all">ทุกหมู่</option>
+            <option value="1">ม.1</option>
+            <option value="2">ม.2</option>
+            <option value="6">ม.6</option>
+            <option value="7">ม.7</option>
+          </select>
+        </div>
+      </div>
+      <div class="cases-table-wrapper">
+        <table class="cases-table" id="casesTable">
+          <thead>
+            <tr>
+              <th>ที่</th>
+              <th>ชื่อ-นามสกุล</th>
+              <th>อายุ</th>
+              <th>หมู่</th>
+              <th>ประเภท</th>
+              <th>เริ่มป่วย</th>
+              <th>พบเชื้อ</th>
+              <th>WBC</th>
+              <th>PLT</th>
+              <th>HCT</th>
+              <th>NS1</th>
+              <th>Cluster</th>
+              <th>สถานะ</th>
+              <th>จัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="casesTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== TAB: ADD CASE ===== -->
+    <section class="tab-content" id="content-add">
+      <div class="form-container">
+        <div class="form-header">
+          <h2>➕ เพิ่ม / แก้ไขเคสไข้เลือดออก</h2>
+          <p>ข้อมูลจะถูกบันทึกในเครื่องนี้ (LocalStorage)</p>
+        </div>
+        <form id="caseForm" onsubmit="saveCase(event)">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>ชื่อ-นามสกุล *</label>
+              <input type="text" id="f_name" required placeholder="เช่น นายสมชาย ใจดี" />
+            </div>
+            <div class="form-group">
+              <label>อายุ</label>
+              <input type="number" id="f_age" placeholder="ปี" min="0" max="120" />
+            </div>
+            <div class="form-group">
+              <label>หมู่ที่ *</label>
+              <select id="f_village" required>
+                <option value="">เลือกหมู่</option>
+                <option value="1">ม.1</option>
+                <option value="2">ม.2</option>
+                <option value="3">ม.3</option>
+                <option value="4">ม.4</option>
+                <option value="5">ม.5</option>
+                <option value="6">ม.6</option>
+                <option value="7">ม.7</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>ประเภท *</label>
+              <select id="f_type" required>
+                <option value="">เลือกประเภท</option>
+                <option value="DHF">DHF (ไข้เลือดออกรุนแรง)</option>
+                <option value="DF">DF (ไข้เลือดออก)</option>
+                <option value="R/O DF">R/O DF (สงสัย)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>วันเริ่มป่วย</label>
+              <input type="date" id="f_onset" />
+            </div>
+            <div class="form-group">
+              <label>วันพบเชื้อ/มา รพ.</label>
+              <input type="date" id="f_confirm" />
+            </div>
+            <div class="form-group">
+              <label>ที่อยู่</label>
+              <input type="text" id="f_address" placeholder="บ้านเลขที่ / พื้นที่" />
+            </div>
+            <div class="form-group">
+              <label>สถานที่เรียน/ทำงาน</label>
+              <input type="text" id="f_school" placeholder="โรงเรียน / ที่ทำงาน" />
+            </div>
+            <div class="form-group">
+              <label>เบอร์โทรศัพท์</label>
+              <input type="tel" id="f_tel" placeholder="0xx-xxxxxxx" />
+            </div>
+            <div class="form-group">
+              <label>Cluster (วงระบาด)</label>
+              <input type="text" id="f_cluster" placeholder="เช่น คลองตาซิ่ว ม.7" />
+            </div>
+          </div>
+
+          <!-- Lab Values -->
+          <div class="form-section-title">🔬 ผล Lab</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>WBC</label>
+              <input type="number" id="f_wbc" placeholder="cells/mm³" />
+            </div>
+            <div class="form-group">
+              <label>PLT</label>
+              <input type="number" id="f_plt" placeholder="cells/mm³" />
+            </div>
+            <div class="form-group">
+              <label>HCT (%)</label>
+              <input type="number" id="f_hct" step="0.1" placeholder="%" />
+            </div>
+            <div class="form-group">
+              <label>NS1</label>
+              <select id="f_ns1">
+                <option value="">ไม่ได้ทำ</option>
+                <option value="Pos">Positive</option>
+                <option value="Neg">Negative</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Dengue IgM</label>
+              <select id="f_igm">
+                <option value="">ไม่ได้ทำ</option>
+                <option value="Pos">Positive</option>
+                <option value="Neg">Negative</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Dengue IgG</label>
+              <select id="f_igg">
+                <option value="">ไม่ได้ทำ</option>
+                <option value="Pos">Positive</option>
+                <option value="Neg">Negative</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- GPS -->
+          <div class="form-section-title">📍 พิกัด GPS (สำหรับแผนที่)</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Latitude</label>
+              <input type="number" id="f_lat" step="0.000001" placeholder="12.xxxxx" />
+            </div>
+            <div class="form-group">
+              <label>Longitude</label>
+              <input type="number" id="f_lng" step="0.000001" placeholder="102.xxxxx" />
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="form-group full-width">
+            <label>หมายเหตุเพิ่มเติม</label>
+            <textarea id="f_note" rows="3" placeholder="รายละเอียดเพิ่มเติม, สัมพันธ์เคส ฯลฯ"></textarea>
+          </div>
+
+          <input type="hidden" id="f_id" />
+          <div class="form-actions">
+            <button type="submit" class="btn-primary" id="submitBtn">💾 บันทึกเคส</button>
+            <button type="button" class="btn-secondary" onclick="resetForm()">🔄 ล้างฟอร์ม</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Case Detail -->
+  <div class="modal-overlay" id="caseModal" onclick="closeCaseModal(event)">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeCaseModal()">✕</button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
