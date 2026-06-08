@@ -443,8 +443,8 @@ body {
 }
 
 .timeline-card.DHF::before { background: var(--red); }
-.timeline-card.DF::before { background: var(--orange); }
-.timeline-card[data-type="R/O DF"]::before { background: var(--yellow); }
+.timeline-card.DF::before { background: var(--blue); }
+.timeline-card[data-type="R/O DF"]::before { background: var(--green); }
 
 .timeline-card:hover {
   transform: translateX(6px);
@@ -478,8 +478,8 @@ body {
 }
 
 .badge-DHF { background: var(--red-soft); color: var(--red); border-color: rgba(232,53,74,0.25); }
-.badge-DF { background: var(--orange-soft); color: var(--orange); border-color: rgba(224,123,26,0.25); }
-.badge-RO { background: var(--yellow-soft); color: var(--yellow); border-color: rgba(196,156,0,0.25); }
+.badge-DF { background: var(--blue-soft); color: var(--blue); border-color: rgba(26,143,196,0.25); }
+.badge-RO { background: var(--green-soft); color: var(--green); border-color: rgba(10,158,118,0.25); }
 .badge-cluster { background: var(--purple-soft); color: var(--purple); border-color: rgba(139,18,164,0.25); }
 .badge-village { background: var(--blue-soft); color: var(--blue); border-color: rgba(26,143,196,0.25); }
 
@@ -547,8 +547,8 @@ body {
   border: 2px solid;
 }
 .legend-dot.dhf { background: var(--red); border-color: var(--red); }
-.legend-dot.df { background: var(--orange); border-color: var(--orange); }
-.legend-dot.ro { background: var(--yellow); border-color: var(--yellow); }
+.legend-dot.df { background: var(--blue); border-color: var(--blue); }
+.legend-dot.ro { background: var(--green); border-color: var(--green); }
 
 .legend-radius {
   width: 20px; height: 10px;

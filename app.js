@@ -130,7 +130,7 @@ function renderDashMarkers() {
 
   cases.forEach(c => {
     if (!c.lat || !c.lng) return;
-    const color = getMarkerColor(c.type);
+    const color = getCaseColor(c.id);
 
     // รัศมี 100m — ไม่รับ click/hover
     const circle = L.circle([c.lat, c.lng], {
@@ -145,14 +145,8 @@ function renderDashMarkers() {
     dashCircles.push(circle);
 
     // Marker
-    const size = c.type === "DHF" ? 15 : 11;
-    const marker = L.circleMarker([c.lat, c.lng], {
-      radius: size,
-      fillColor: color,
-      color: "#fff",
-      weight: 2.5,
-      opacity: 1,
-      fillOpacity: 0.92,
+    const marker = L.marker([c.lat, c.lng], {
+      icon: getMarkerIcon(c.type, color, false, false),
       bubblingMouseEvents: false,
     }).addTo(dashMap);
 
@@ -160,11 +154,11 @@ function renderDashMarkers() {
 
     // Hover effect
     marker.on("mouseover", function() {
-      if (dashSelectedId !== c.id) this.setStyle({ weight: 4, color, radius: size + 2 });
+      if (dashSelectedId !== c.id) this.setIcon(getMarkerIcon(c.type, color, true, false));
       this.openTooltip();
     });
     marker.on("mouseout", function() {
-      if (dashSelectedId !== c.id) this.setStyle({ weight: 2.5, color: "#fff", radius: size });
+      if (dashSelectedId !== c.id) this.setIcon(getMarkerIcon(c.type, color, false, false));
       this.closeTooltip();
     });
 
@@ -188,25 +182,30 @@ function renderDashMarkers() {
       // deselect previous
       if (dashSelectedId) {
         const prev = dashMarkers.find(m => m._caseId === dashSelectedId);
-        if (prev) prev.setStyle({ weight: 2.5, color: "#fff", radius: getCaseById(dashSelectedId)?.type === "DHF" ? 15 : 11 });
+        if (prev) {
+          const pCase = getCaseById(dashSelectedId);
+          prev.setIcon(getMarkerIcon(pCase?.type, getCaseColor(pCase?.id), false, false));
+          prev.setZIndexOffset(0);
+        }
       }
       if (dashSelectedPulse) { dashMap.removeLayer(dashSelectedPulse); dashSelectedPulse = null; }
 
       dashSelectedId = c.id;
-      marker.setStyle({ weight: 4, color, radius: size + 3 });
-      marker.bringToFront();
+      marker.setIcon(getMarkerIcon(c.type, color, false, true));
+      marker.setZIndexOffset(1000);
 
       // Pulse ring
+      const baseR = c.type === "DHF" ? 15 : 11;
       dashSelectedPulse = L.circleMarker([c.lat, c.lng], {
-        radius: size + 8, fillColor: "transparent", color, weight: 2,
+        radius: baseR + 8, fillColor: "transparent", color, weight: 2,
         opacity: 0.6, fillOpacity: 0, interactive: false,
       }).addTo(dashMap);
-      let grow = true; let pr = size + 8;
+      let grow = true; let pr = baseR + 8;
       const iv = setInterval(() => {
         if (!dashSelectedPulse || !dashMap.hasLayer(dashSelectedPulse)) { clearInterval(iv); return; }
         pr += grow ? 0.8 : -0.8;
-        if (pr > size + 20) grow = false;
-        if (pr < size + 8) grow = true;
+        if (pr > baseR + 20) grow = false;
+        if (pr < baseR + 8) grow = true;
         dashSelectedPulse.setRadius(pr);
         dashSelectedPulse.setStyle({ opacity: grow ? 0.3 : 0.7 });
       }, 40);
@@ -275,7 +274,11 @@ function closeDashOverlay() {
   }
   if (dashSelectedId) {
     const prev = dashMarkers.find(m => m._caseId === dashSelectedId);
-    if (prev) prev.setStyle({ weight: 2.5, color: "#fff", radius: getCaseById(dashSelectedId)?.type === "DHF" ? 15 : 11 });
+    if (prev) {
+      const pc = getCaseById(dashSelectedId);
+      prev.setIcon(getMarkerIcon(pc?.type, getCaseColor(pc?.id), false, false));
+      prev.setZIndexOffset(0);
+    }
     dashSelectedId = null;
   }
 }
@@ -353,10 +356,10 @@ function renderTimeline(filter) {
       <div class="timeline-date-label">${label}</div>`;
     groups[month].forEach(c => {
       const typeBadge = c.type === "DHF"
-        ? `<span class="badge badge-DHF">DHF 🔴</span>`
+        ? `<span class="badge badge-DHF">DHF 🔺</span>`
         : c.type === "DF"
-        ? `<span class="badge badge-DF">DF 🟠</span>`
-        : `<span class="badge badge-RO">R/O DF 🟡</span>`;
+        ? `<span class="badge badge-DF">DF ⬛</span>`
+        : `<span class="badge badge-RO">R/O DF ⬤</span>`;
       const clusterBadge = c.cluster ? `<span class="badge badge-cluster">🔗 ${c.cluster}</span>` : "";
       const villageBadge = `<span class="badge badge-village">ม.${c.village}</span>`;
       const hrLink = c.hrLink ? `<div class="timeline-hr-link">🔗 สัมพันธ์กับ: ${c.hrLink}</div>` : "";
@@ -422,10 +425,38 @@ function initMap() {
   renderMapCaseList();
 }
 
-function getMarkerColor(type) {
-  if (type === "DHF") return "#ff4d6d";
-  if (type === "DF") return "#ff9a3c";
-  return "#ffd166";
+const CASE_COLORS = [
+  "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231",
+  "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe",
+  "#008080", "#e6beff", "#9a6324", "#fffac8", "#800000",
+  "#aaffc3", "#808000", "#ffd8b1", "#000075", "#808080"
+];
+
+function getCaseColor(caseId) {
+  if (!caseId) return "#1a8fc4";
+  let hash = 0;
+  for (let i = 0; i < caseId.length; i++) hash = caseId.charCodeAt(i) + ((hash << 5) - hash);
+  return CASE_COLORS[Math.abs(hash) % CASE_COLORS.length];
+}
+
+function getMarkerIcon(type, color, hover, selected) {
+  let size = type === "DHF" ? 26 : 22;
+  if (hover) size += 4;
+  if (selected) size += 6;
+  let svg = '';
+  if (type === "DHF") {
+    svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><polygon points="12,2 22,22 2,22" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`;
+  } else if (type === "DF") {
+    svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`;
+  } else {
+    svg = `<svg width="${size}" height="${size}" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="${color}" stroke="#fff" stroke-width="2"/></svg>`;
+  }
+  return L.divIcon({
+    html: svg,
+    className: 'custom-case-marker',
+    iconSize: [size, size],
+    iconAnchor: [size/2, size/2]
+  });
 }
 
 function renderMapMarkers() {
@@ -441,7 +472,7 @@ function renderMapMarkers() {
 
   cases.forEach(c => {
     if (!c.lat || !c.lng) return;
-    const color = getMarkerColor(c.type);
+    const color = getCaseColor(c.id);
 
     // ── รัศมี 100m: interactive:false เพื่อไม่บัง click ──
     const circle = L.circle([c.lat, c.lng], {
@@ -457,13 +488,8 @@ function renderMapMarkers() {
 
     // ── Marker หลัก ──
     const radius = c.type === "DHF" ? 14 : 11;
-    const marker = L.circleMarker([c.lat, c.lng], {
-      radius,
-      fillColor: color,
-      color: "white",
-      weight: 2.5,
-      opacity: 1,
-      fillOpacity: 0.92,
+    const marker = L.marker([c.lat, c.lng], {
+      icon: getMarkerIcon(c.type, color, false, false),
       bubblingMouseEvents: false,
     }).addTo(map);
 
@@ -473,14 +499,14 @@ function renderMapMarkers() {
     // ── Hover: แสดง tooltip สวยงาม ──
     marker.on("mouseover", function(e) {
       if (selectedMarkerId !== c.id) {
-        this.setStyle({ weight: 4, color: color, radius: radius + 2 });
+        this.setIcon(getMarkerIcon(c.type, color, true, false));
       }
       this.openTooltip();
     });
 
     marker.on("mouseout", function() {
       if (selectedMarkerId !== c.id) {
-        this.setStyle({ weight: 2.5, color: "white", radius });
+        this.setIcon(getMarkerIcon(c.type, color, false, false));
       }
       this.closeTooltip();
     });
@@ -531,9 +557,9 @@ function selectMapMarker(c, markerLayer, radius, color) {
   if (selectedMarkerId) {
     const prev = markers.find(m => m._caseId === selectedMarkerId);
     if (prev) {
-      const prevColor = getMarkerColor(getCaseById(selectedMarkerId)?.type || "DF");
-      const prevR = getCaseById(selectedMarkerId)?.type === "DHF" ? 14 : 11;
-      prev.setStyle({ weight: 2.5, color: "white", radius: prevR });
+      const pc = getCaseById(selectedMarkerId);
+      prev.setIcon(getMarkerIcon(pc?.type, getCaseColor(pc?.id), false, false));
+      prev.setZIndexOffset(0);
     }
   }
   if (selectedPulseLayer) { map.removeLayer(selectedPulseLayer); selectedPulseLayer = null; }
@@ -541,8 +567,8 @@ function selectMapMarker(c, markerLayer, radius, color) {
   selectedMarkerId = c.id;
 
   // สไตล์ marker ที่เลือก
-  markerLayer.setStyle({ weight: 4, color: color, radius: radius + 3 });
-  markerLayer.bringToFront();
+  markerLayer.setIcon(getMarkerIcon(c.type, color, false, true));
+  markerLayer.setZIndexOffset(1000);
 
   // สร้าง pulse ring (circle ขยายตัว)
   selectedPulseLayer = L.circleMarker([c.lat, c.lng], {
@@ -584,7 +610,7 @@ function renderMapCaseList() {
   const cases = loadCases();
   container.innerHTML = `<div style="font-size:0.78rem;font-weight:700;color:var(--text-secondary);margin-bottom:8px">รายชื่อเคส (${cases.length} ราย)</div>`;
   cases.forEach(c => {
-    const color = getMarkerColor(c.type);
+    const color = getCaseColor(c.id);
     container.innerHTML += `
       <div class="map-case-item" id="listItem-${c.id}" onclick="flyToCase('${c.id}')">
         <div class="map-case-dot" style="background:${color};box-shadow:0 0 6px ${color}"></div>
@@ -606,7 +632,7 @@ function flyToCase(id) {
 
   // หลัง fly เสร็จ ค่อย select marker
   setTimeout(() => {
-    const color = getMarkerColor(c.type);
+    const color = getCaseColor(c.id);
     const radius = c.type === "DHF" ? 14 : 11;
     const markerLayer = markers.find(m => m._caseId === id);
     if (markerLayer) selectMapMarker(c, markerLayer, radius, color);
@@ -621,7 +647,7 @@ function flyToCase(id) {
 function showMapOverlay(c) {
   const overlay = document.getElementById("mapOverlayInfo");
   const content = document.getElementById("overlayContent");
-  const color = getMarkerColor(c.type);
+  const color = getCaseColor(c.id);
   const onsetFmt = c.onset ? formatDateTH(c.onset) : "-";
   const confirmFmt = c.confirm ? formatDateTH(c.confirm) : "-";
 
@@ -668,8 +694,9 @@ function closeMapOverlay() {
   if (selectedMarkerId) {
     const prev = markers.find(m => m._caseId === selectedMarkerId);
     if (prev) {
-      const prevType = getCaseById(selectedMarkerId)?.type;
-      prev.setStyle({ weight: 2.5, color: "white", radius: prevType === "DHF" ? 14 : 11 });
+      const pc = getCaseById(selectedMarkerId);
+      prev.setIcon(getMarkerIcon(pc?.type, getCaseColor(pc?.id), false, false));
+      prev.setZIndexOffset(0);
     }
     selectedMarkerId = null;
   }
@@ -700,10 +727,10 @@ function renderCasesTable() {
 
   cases.forEach((c, idx) => {
     const typeBadge = c.type === "DHF"
-      ? `<span class="badge badge-DHF">DHF</span>`
+      ? `<span class="badge badge-DHF">DHF 🔺</span>`
       : c.type === "DF"
-      ? `<span class="badge badge-DF">DF</span>`
-      : `<span class="badge badge-RO">R/O DF</span>`;
+      ? `<span class="badge badge-DF">DF ⬛</span>`
+      : `<span class="badge badge-RO">R/O DF ⬤</span>`;
 
     const statusBadge = c.status === "active"
       ? `<span style="color:var(--red);font-size:0.75rem;font-weight:700">🔴 Active</span>`
@@ -761,7 +788,7 @@ function openCaseModal(id) {
   if (!c) return;
   const modal = document.getElementById("caseModal");
   const content = document.getElementById("modalContent");
-  const color = getMarkerColor(c.type);
+  const color = getCaseColor(c.id);
   const onsetFmt = c.onset ? formatDateTH(c.onset) : "-";
   const confirmFmt = c.confirm ? formatDateTH(c.confirm) : "-";
 

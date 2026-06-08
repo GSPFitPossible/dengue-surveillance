@@ -105,9 +105,9 @@
           <!-- Map legend inside map -->
           <div style="position:absolute;bottom:12px;left:12px;z-index:500;background:rgba(255,255,255,0.95);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:0.75rem;color:var(--text-secondary);box-shadow:var(--shadow)">
             <div style="display:flex;gap:10px;flex-wrap:wrap">
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e8354a;margin-right:4px"></span>DHF</span>
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e07b1a;margin-right:4px"></span>DF</span>
-              <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#c49c00;margin-right:4px"></span>R/O DF</span>
+              <span style="display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24"><polygon points="12,2 22,22 2,22" fill="#666"/></svg> DHF</span>
+              <span style="display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" fill="#666"/></svg> DF</span>
+              <span style="display:flex;align-items:center;gap:4px"><svg width="12" height="12" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#666"/></svg> R/O DF</span>
               <span><span style="display:inline-block;width:14px;height:8px;border-radius:2px;background:rgba(26,143,196,0.15);border:1px solid #1a8fc4;margin-right:4px"></span>รัศมี 100ม.</span>
             </div>
           </div>
@@ -151,10 +151,10 @@
       <div class="map-layout">
         <div class="map-sidebar">
           <div class="map-legend">
-            <h3>สัญลักษณ์</h3>
-            <div class="legend-item"><span class="legend-dot dhf"></span> DHF (รุนแรง)</div>
-            <div class="legend-item"><span class="legend-dot df"></span> DF (ปกติ)</div>
-            <div class="legend-item"><span class="legend-dot ro"></span> R/O DF</div>
+            <h3 style="margin-bottom:8px">สัญลักษณ์ (สีบอกถึงผู้ป่วย)</h3>
+            <div class="legend-item" style="display:flex;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" style="margin-right:8px"><polygon points="12,2 22,22 2,22" fill="#666"/></svg> DHF (รุนแรง)</div>
+            <div class="legend-item" style="display:flex;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" style="margin-right:8px"><rect x="3" y="3" width="18" height="18" fill="#666"/></svg> DF (ปกติ)</div>
+            <div class="legend-item" style="display:flex;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" style="margin-right:8px"><circle cx="12" cy="12" r="10" fill="#666"/></svg> R/O DF</div>
             <div class="legend-item"><span class="legend-radius"></span> รัศมี 100 เมตร</div>
           </div>
           <div class="map-case-list" id="mapCaseList"></div>
